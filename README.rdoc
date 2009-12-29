@@ -1,9 +1,26 @@
 = memcache-client-activerecord
 
-Description goes here.
+memcache-client-activerecord has the same interface as memcache-client,
+and provides the functionality of saving to ActiveRecord instead of Memcached.
+
+== INSTALL
+
+  $ [sudo] gem install memcache-client-activerecord
+
+== Usage for Rails
+
+config/environment.rb
+  config.gem 'memcache-client-activerecord'
+
+Generate a model and a migration
+  $ script/generate cache_model Cache
+  $ rake db:migrate
+
+Instead of MemCache.new
+  cache = MemCache::ActiveRecord.new(Cache)
 
 == Note on Patches/Pull Requests
- 
+
 * Fork the project.
 * Make your feature addition or bug fix.
 * Add tests for it. This is important so I don't break it in a

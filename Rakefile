@@ -5,12 +5,14 @@ begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
     gem.name = "memcache-client-activerecord"
-    gem.summary = %Q{TODO: one-line summary of your gem}
-    gem.description = %Q{TODO: longer description of your gem}
+    gem.summary = %Q{memcache-client with ActiveRecord backend}
+    gem.description = %Q{memcache-client-activerecord has the same interface as memcache-client, and provides the functionality of saving to ActiveRecord instead of Memcached.}
     gem.email = "m.ishihara@gmail.com"
     gem.homepage = "http://github.com/m4i/memcache-client-activerecord"
     gem.authors = ["ISHIHARA Masaki"]
+    gem.add_runtime_dependency "activerecord", ">= 2.1"
     gem.add_development_dependency "rspec", ">= 1.2.9"
+    gem.add_development_dependency "memcache-client", ">= 1.7.7"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
   Jeweler::GemcutterTasks.new

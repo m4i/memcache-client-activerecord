@@ -1,0 +1,18 @@
+sqlite3:
+  adapter: sqlite3
+  database: spec/database.sqlite3
+
+mysql:
+  adapter: mysql
+  database: memcache_client_activerecord_test
+  username: root
+  password:
+  socket: /var/lib/mysql/mysql.sock
+  encoding: utf8
+
+postgresql:
+  adapter: postgresql
+  database: memcache_client_activerecord_test
+  username: memcache_client_activerecord_test
+  password:
+  encoding: unicode
