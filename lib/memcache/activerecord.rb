@@ -83,7 +83,7 @@ class MemCache
 
     def get(key, raw = false)
       cache_key = make_cache_key(key)
-      if value = find(cache_key, :value, true, __method__)
+      if value = find(__method__, cache_key, :value, true)
         raw ? value : Marshal.load(value)
       end
     end
@@ -104,7 +104,7 @@ class MemCache
         cache_keys[make_cache_key(key)] = key
         cache_keys
       end
-      rows = find_all(cache_keys.keys, [:key, :value], true, __method__)
+      rows = find_all(__method__, cache_keys.keys, [:key, :value], true)
       rows.inject({}) do |hash, (key, value)|
         hash[cache_keys[key]] = Marshal.load(value)
         hash
@@ -117,9 +117,9 @@ class MemCache
       cache_key = make_cache_key(key)
       value     = value_to_storable(value, raw)
 
-      unless update(cache_key, value, expiry, __method__)
+      unless update(__method__, cache_key, value, expiry)
         # rescue duplicate key error
-        insert(cache_key, value, expiry, __method__) rescue nil
+        insert(__method__, cache_key, value, expiry) rescue nil
       end
 
       STORED unless @no_reply
@@ -129,7 +129,7 @@ class MemCache
       check_readonly!
       raise MemCacheError, 'A block is required' unless block_given?
 
-      result = cas_with_reply(key, expiry, raw, __method__, &block)
+      result = cas_with_reply(__method__, key, expiry, raw, &block)
       result unless @no_reply
     end
 
@@ -140,17 +140,17 @@ class MemCache
       value     = value_to_storable(value, raw)
 
       old_value, old_expiry =
-        find(cache_key, [:value, :expiry], false, __method__)
+        find(__method__, cache_key, [:value, :expiry], false)
 
       if old_value && available?(old_expiry)
         NOT_STORED unless @no_reply
 
       else
         if old_value
-          update(cache_key, value, expiry, __method__)
+          update(__method__, cache_key, value, expiry)
         else
           # rescue duplicate key error
-          insert(cache_key, value, expiry, __method__) rescue nil
+          insert(__method__, cache_key, value, expiry) rescue nil
         end
 
         STORED unless @no_reply
@@ -163,7 +163,7 @@ class MemCache
       cache_key = make_cache_key(key)
       value     = value_to_storable(value, raw)
 
-      if update(cache_key, value, expiry, __method__, true)
+      if update(__method__, cache_key, value, expiry, true)
         STORED unless @no_reply
       else
         NOT_STORED unless @no_reply
@@ -193,11 +193,11 @@ class MemCache
       conditions = { COLUMN_NAMES[:key] => cache_key }
 
       if @no_reply
-        _delete(conditions, __method__)
+        _delete(__method__, conditions)
         nil
       else
-        exists = !!find(cache_key, :key, true, __method__)
-        _delete(conditions, __method__)
+        exists = !!find(__method__, cache_key, :key, true)
+        _delete(__method__, conditions)
         exists ? DELETED : NOT_FOUND
       end
     end
@@ -214,7 +214,7 @@ class MemCache
     end
 
     def garbage_collection!
-      _delete(["#{quote_column_name(:expiry)} <= ?", now], __method__)
+      _delete(__method__, ["#{quote_column_name(:expiry)} <= ?", now])
     end
 
     private
@@ -263,27 +263,27 @@ class MemCache
         end
       end
 
-      def gets(key, raw, method)
+      def gets(_method_, key, raw)
         cache_key = make_cache_key(key)
-        value, cas = find(cache_key, [:value, :cas], true, method)
+        value, cas = find(_method_, cache_key, [:value, :cas], true)
         if cas
           [raw ? value : Marshal.load(value), cas]
         end
       end
 
-      def cas_with_reply(key, expiry, raw, method, &block)
-        value, cas = gets(key, raw, method)
+      def cas_with_reply(_method_, key, expiry, raw, &block)
+        value, cas = gets(_method_, key, raw)
         if cas
           cache_key = make_cache_key(key)
           value     = value_to_storable(yield(value), raw)
 
-          update(cache_key, value, expiry, method, true, cas) ?
+          update(_method_, cache_key, value, expiry, true, cas) ?
             STORED : EXISTS
         end
       end
 
       # TODO: check value size
-      def append_or_prepend(method, key, value)
+      def append_or_prepend(_method_, key, value)
         check_readonly!
 
         cache_key = make_cache_key(key)
@@ -292,33 +292,33 @@ class MemCache
         old = quote_column_name(:value)
         new = quote_value(:value, value)
         pairs = {
-          :value => concat_sql(*(method == :append ? [old, new] : [new, old]))
+          :value => concat_sql(*(_method_ == :append ? [old, new] : [new, old]))
         }
 
         affected_rows = @ar.connection.update(
           update_sql(cache_key, pairs, true, nil),
-          sql_name(method)
+          sql_name(_method_)
         )
 
         affected_rows > 0 ? STORED : NOT_STORED unless @no_reply
       end
 
-      def incr_or_decl(method, key, amount)
+      def incr_or_decl(_method_, key, amount)
         check_readonly!
 
         unless /\A\s*\d+\s*\z/ =~ amount.to_s
           raise MemCacheError, 'invalid numeric delta argument'
         end
-        amount = method == :incr ? amount.to_i : - amount.to_i
+        amount = _method_ == :incr ? amount.to_i : - amount.to_i
 
         value = nil
 
         count = 0
         begin
           count += 1
-          raise MemCacheError, "cannot #{method}" if count > 10
+          raise MemCacheError, "cannot #{_method_}" if count > 10
 
-          result = cas_with_reply(key, nil, true, method) do |old_value|
+          result = cas_with_reply(_method_, key, nil, true) do |old_value|
             unless /\A\s*\d+\s*\z/ =~old_value
               raise MemCacheError,
                 'cannot increment or decrement non-numeric value'
@@ -333,7 +333,7 @@ class MemCache
         raise unless @no_reply
       end
 
-      def find(cache_key, column_keys, only_available, method)
+      def find(_method_, cache_key, column_keys, only_available)
         result = @ar.connection.send(
           column_keys.is_a?(Array) ? :select_one : :select_value,
           select_sql(
@@ -341,7 +341,7 @@ class MemCache
             quote_column_name(*Array(column_keys)),
             only_available
           ),
-          sql_name(method)
+          sql_name(_method_)
         )
 
         (result && column_keys.is_a?(Array)) ?
@@ -349,7 +349,7 @@ class MemCache
           result
       end
 
-      def find_all(cache_keys, column_keys, only_available, method)
+      def find_all(_method_, cache_keys, column_keys, only_available)
         return [] if cache_keys.empty?
 
         result = @ar.connection.send(
@@ -359,7 +359,7 @@ class MemCache
             quote_column_name(*Array(column_keys)),
             only_available
           ),
-          sql_name(method)
+          sql_name(_method_)
         )
 
         column_keys.is_a?(Array) ?
@@ -367,7 +367,7 @@ class MemCache
           result
       end
 
-      def insert(cache_key, value, expiry, method)
+      def insert(_method_, cache_key, value, expiry)
         attributes = attributes_for_update(value, expiry).merge(
           :key => cache_key,
           :cas => 0
@@ -383,11 +383,11 @@ class MemCache
           "INSERT INTO #{@ar.quoted_table_name}" +
           " (#{quote_column_name(*column_keys)})" +
           " VALUES(#{quoted_values.join(', ')})",
-          sql_name(method)
+          sql_name(_method_)
         )
       end
 
-      def update(cache_key, value, expiry, method, only_available = false, cas = nil)
+      def update(_method_, cache_key, value, expiry, only_available = false, cas = nil)
         attributes = attributes_for_update(value, expiry)
 
         pairs = attributes.keys.inject({}) do |pairs, column_key|
@@ -397,26 +397,26 @@ class MemCache
 
         @ar.connection.update(
           update_sql(cache_key, pairs, only_available, cas),
-          sql_name(method)
+          sql_name(_method_)
         ) > 0
       end
 
-      def _delete(conditions, method)
+      def _delete(_method_, conditions)
         @ar.connection.execute(
           "DELETE FROM #{@ar.quoted_table_name}" +
           " WHERE #{@ar.send(:sanitize_sql, conditions)}",
-          sql_name(method)
+          sql_name(_method_)
         )
       end
 
-      def truncate(method)
+      def truncate(_method_)
         sql = case @ar.connection.adapter_name
           when 'SQLite'
             "DELETE FROM #{@ar.quoted_table_name}"
           else
             "TRUNCATE TABLE #{@ar.quoted_table_name}"
           end
-        @ar.connection.execute(sql, sql_name(method))
+        @ar.connection.execute(sql, sql_name(_method_))
       end
 
       def attributes_for_update(value, expiry)
@@ -476,8 +476,8 @@ class MemCache
         end
       end
 
-      def sql_name(method)
-        "#{self.class.name}##{method}"
+      def sql_name(_method_)
+        "#{self.class.name}##{_method_}"
       end
 
       def now
