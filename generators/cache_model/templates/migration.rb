@@ -4,19 +4,19 @@ class <%= migration_name %> < ActiveRecord::Migration
     when 'MySQL'
       execute(<<-SQL)
         CREATE TABLE `<%= table_name %>` (
-          `key`       VARBINARY(250) NOT NULL PRIMARY KEY,
-          `value`     MEDIUMBLOB NOT NULL,
-          `cas`       INT UNSIGNED NOT NULL,
-          `expire_at` DATETIME
+          `key`    VARBINARY(250) NOT NULL PRIMARY KEY,
+          `value`  MEDIUMBLOB NOT NULL,
+          `cas`    INT UNSIGNED NOT NULL,
+          `expiry` INT
         ) ENGINE=InnoDB
       SQL
 
     else
       create_table :<%= table_name %>, :id => false do |t|
-        t.string   :key,   :null => false, :limit => 250
-        t.binary   :value, :null => false
-        t.integer  :cas,   :null => false
-        t.datetime :expire_at
+        t.string  :key,   :null => false, :limit => 250
+        t.binary  :value, :null => false
+        t.integer :cas,   :null => false
+        t.integer :expiry
       end
       add_index :<%= table_name %>, :key, :unique => true
     end

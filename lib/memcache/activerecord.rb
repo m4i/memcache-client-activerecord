@@ -20,10 +20,10 @@ class MemCache
     THIRTY_DAYS    = 60 * 60 * 24 * 30
 
     COLUMN_NAMES = {
-      :key       => 'key',
-      :value     => 'value',
-      :cas       => 'cas',
-      :expire_at => 'expire_at',
+      :key    => 'key',
+      :value  => 'value',
+      :cas    => 'cas',
+      :expiry => 'expiry',
     }
 
     STORED     = "STORED\r\n"
@@ -139,10 +139,10 @@ class MemCache
       cache_key = make_cache_key(key)
       value     = value_to_storable(value, raw)
 
-      old_value, expire_at =
-        find(cache_key, [:value, :expire_at], false, __method__)
+      old_value, old_expiry =
+        find(cache_key, [:value, :expiry], false, __method__)
 
-      if old_value && available?(expire_at)
+      if old_value && available?(old_expiry)
         NOT_STORED unless @no_reply
 
       else
@@ -214,7 +214,7 @@ class MemCache
     end
 
     def garbage_collection!
-      _delete(["#{quote_column_name(:expire_at)} <= ?", now], __method__)
+      _delete(["#{quote_column_name(:expiry)} <= ?", now], __method__)
     end
 
     private
@@ -246,6 +246,14 @@ class MemCache
         value = raw ? value.to_s : Marshal.dump(value)
         check_value_size!(value)
         value
+      end
+
+      def expiry_to_storable(expiry)
+        expiry.zero? ?
+          nil :
+          expiry <= THIRTY_DAYS ?
+            now + expiry :
+            expiry
       end
 
       def check_value_size!(value)
@@ -414,7 +422,7 @@ class MemCache
       def attributes_for_update(value, expiry)
         attributes = { :value => value }
         unless expiry.nil?
-          attributes.update(:expire_at => expiry.zero? ? nil : now(expiry))
+          attributes.update(:expiry => expiry_to_storable(expiry))
         end
         attributes
       end
@@ -450,8 +458,8 @@ class MemCache
 
         if only_available
           conditions.first << ' AND (' +
-            "#{quote_column_name(:expire_at)} IS NULL" +
-            " OR #{quote_column_name(:expire_at)} > ?" +
+            "#{quote_column_name(:expiry)} IS NULL" +
+            " OR #{quote_column_name(:expiry)} > ?" +
           ')'
           conditions << now
         end
@@ -472,8 +480,8 @@ class MemCache
         "#{self.class.name}##{method}"
       end
 
-      def now(delay = 0)
-        delay <= THIRTY_DAYS ? Time.now + delay : Time.at(delay)
+      def now
+        Time.now.to_i
       end
 
       def quote_column_name(*column_keys)
@@ -487,12 +495,8 @@ class MemCache
         @ar.connection.quote(value, @ar.columns_hash[COLUMN_NAMES[column_key]])
       end
 
-      def available?(expire_at)
-        expire_at.nil? || now < to_time(expire_at)
-      end
-
-      def to_time(expire_at)
-        @ar.columns_hash[COLUMN_NAMES[:expire_at]].type_cast(expire_at)
+      def available?(expiry)
+        expiry.nil? || now < expiry.to_i
       end
   end
 

@@ -139,17 +139,23 @@ describe "#{adapter}:" do
         end
 
         it 'should support a number of seconds starting from current time' do
-          [1, MemCache::ActiveRecord::THIRTY_DAYS].each do |expiry|
+          [
+            1,
+            MemCache::ActiveRecord::THIRTY_DAYS,
+          ].each do |expiry|
             dbcache.set('foo', 1, expiry)
-            cache_class.find_by_key('foo').expire_at.to_i.should ==
+            cache_class.find_by_key('foo').expiry.should ==
               Time.now.to_i + expiry
           end
         end
 
         it 'should support an unix time expiry' do
-          [MemCache::ActiveRecord::THIRTY_DAYS + 1, Time.now.to_i].each do |expiry|
+          [
+            MemCache::ActiveRecord::THIRTY_DAYS + 1,
+            Time.now.to_i,
+          ].each do |expiry|
             dbcache.set('foo', 1, expiry)
-            cache_class.find_by_key('foo').expire_at.to_i.should == expiry
+            cache_class.find_by_key('foo').expiry.should == expiry
           end
         end
 
