@@ -17,6 +17,7 @@ class MemCache
 
     MAX_KEY_SIZE   = 250
     MAX_VALUE_SIZE = 2 ** 20
+    THIRTY_DAYS    = 60 * 60 * 24 * 30
 
     COLUMN_NAMES = {
       :key       => 'key',
@@ -472,7 +473,7 @@ class MemCache
       end
 
       def now(delay = 0)
-        Time.now + delay
+        delay <= THIRTY_DAYS ? Time.now + delay : Time.at(delay)
       end
 
       def quote_column_name(*column_keys)

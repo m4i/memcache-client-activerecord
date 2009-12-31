@@ -138,6 +138,21 @@ describe "#{adapter}:" do
           caches.same(:get, 'FOO').should == 2
         end
 
+        it 'should support a number of seconds starting from current time' do
+          [1, MemCache::ActiveRecord::THIRTY_DAYS].each do |expiry|
+            dbcache.set('foo', 1, expiry)
+            cache_class.find_by_key('foo').expire_at.to_i.should ==
+              Time.now.to_i + expiry
+          end
+        end
+
+        it 'should support an unix time expiry' do
+          [MemCache::ActiveRecord::THIRTY_DAYS + 1, Time.now.to_i].each do |expiry|
+            dbcache.set('foo', 1, expiry)
+            cache_class.find_by_key('foo').expire_at.to_i.should == expiry
+          end
+        end
+
         unless ENV['LOG']
           it 'should behave like MemCache with over 64KB value' do
             value = 'a' * (2 ** 16 + 1)
