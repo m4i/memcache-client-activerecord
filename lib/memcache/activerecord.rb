@@ -223,23 +223,30 @@ class MemCache
       end
 
       def make_cache_key(key)
-        if @autofix_keys && (key =~ /\s/ ||
-          (key.length + (namespace.nil? ? 0 : namespace.length)) > MAX_KEY_SIZE)
+        if @autofix_keys && (key =~ /\s/ || key_length(key) > MAX_KEY_SIZE)
           key = "#{Digest::SHA1.hexdigest(key)}-autofixed"
         end
 
-        key = namespace.nil? ?
+        cache_key = namespace.nil? ?
           key :
           "#{namespace}#{@namespace_separator}#{key}"
 
-        if key =~ /\s/
-          raise ArgumentError, "illegal character in key #{key.inspect}"
+        if cache_key =~ /\s/
+          raise ArgumentError, "illegal character in key #{cache_key.inspect}"
         end
-        if key.length > MAX_KEY_SIZE
-          raise ArgumentError, "key too long #{key.inspect}"
+        if cache_key.length > MAX_KEY_SIZE
+          raise ArgumentError, "key too long #{cache_key.inspect}"
         end
 
-        key
+        cache_key
+      end
+
+      def key_length(key)
+        key.length + (
+          namespace.nil? ?
+            0 :
+            namespace.length + @namespace_separator.to_s.length
+        )
       end
 
       def value_to_storable(value, raw)
