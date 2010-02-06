@@ -11,9 +11,9 @@ begin
     gem.homepage = "http://github.com/m4i/memcache-client-activerecord"
     gem.authors = ["ISHIHARA Masaki"]
     gem.rubyforge_project = "mc-activerecord"
-    gem.add_runtime_dependency "activerecord", ">= 2.1"
-    gem.add_development_dependency "rspec", ">= 1.2.9"
-    gem.add_development_dependency "memcache-client", ">= 1.7.7"
+    gem.add_development_dependency "activerecord", "~> 2.1"
+    gem.add_development_dependency "rspec", ">= 1.3.0"
+    gem.add_development_dependency "memcache-client", ">= 1.7.8"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
   Jeweler::GemcutterTasks.new
